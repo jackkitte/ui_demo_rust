@@ -1,8 +1,8 @@
-use iced::{
-    button, executor, Align, Application, Button, Column, Command, Element, Font,
-    HorizontalAlignment, Length, Row, Settings, Subscription, Text,
-};
-use iced_native::Widget;
+use std::hash::Hash;
+use std::time::{Duration, Instant};
+
+use iced::{Align, Application, Button, Column, Command, Element, Font, HorizontalAlignment, Length, Row, Settings, Text, button, executor};
+use iced_futures::{self, futures};
 
 struct GUI {
     tick_state: TickState,
@@ -25,6 +25,33 @@ pub enum Message {
 pub enum TickState {
     Stopped,
     Ticking,
+}
+
+pub struct Timer {
+    duration: Duration,
+}
+
+impl Timer {
+    fn new(duration: Duration) -> Timer {
+        Timer { duration: duration }
+    }
+}
+
+impl<H, E> iced_native::subscription::Recipe<H, E> for Timer
+where
+    H: std::hash::Hasher,
+{
+    type Output = Instant;
+
+    fn hash(&self, state: &mut H) {
+        std::any::TypeId::of::<Self>().hash(state);
+        self.duration.hash(state);
+    }
+
+    fn stream(self: Box<Self>, _input: futures::stream::BoxStream<'static, E>) -> futures::stream::BoxStream<'static, Self::Output> {
+        use futures::stream::StreamExt;
+        async_std::stream::interval(self.duration).map(|_| Instant::now()).boxed()
+    }
 }
 
 impl Application for GUI {
